@@ -1,10 +1,9 @@
 function XQ_TRF(RE,RN,RU,nt,dt,LabE,LabN,LabU,ps,overlap,itp)
-% XQ_TRF (Updated: Fixed Y-Axis [0.01, 100], Output .csv for Excel)
+% XQ_TRF (Modified: 3-Component Input, 3-Row Separate Figures, Fixed Y-Axis, Output Data)
 %
 % Updates:
-% 1. Generates separate figures for E/U and N/U (3 subplots each).
-% 2. Y-Axis of Spectral Ratio plot is fixed to [0.01, 100].
-% 3. Outputs smoothed data to both .out (text) and .csv (Excel-friendly).
+% 1. Y-Axis Limit fixed to [0.01, 100] for Spectral Ratio plot.
+% 2. Re-enabled data output to text files (.out).
 
 global F_min F_max  T_i T_f T_ei T_ef NN
 global T_tick F_tick 
@@ -13,7 +12,7 @@ global Data_Path Output_Path
 T_unit='sec';
 R_unit='gal'; 
 
-% --- 檢查時間窗設定 ---
+% --- 檢查時間窗 ---
 if (T_ei+NN*dt-dt > T_f)
     disp('Error: T_ef > T_f (Window exceeds file duration)')
     return
@@ -34,7 +33,8 @@ RfU = fft(RU,N)*dt;
 df = 1/(N*dt);
 f = [0:df:M*df -(M-1)*df:df:-df];
 
-% --- 2. 濾波 (Brick-wall Filter) ---
+% --- 2. 濾波 (Filter) ---
+% 這裡保留您目前的頻域硬切濾波方式，若要改 Butterworth 可自行替換
 czero = complex(0,0);
 
 % High pass
@@ -73,7 +73,7 @@ while(T_ei+NN*dt-dt <= T_f)
     T_ef = T_ei + NN*dt;
     T_effect = T_ef - T_ei;
 
-    % --- 加窗 (Hamming) ---
+    % --- 加窗 (Hamming Window) ---
     N_wd = NN;
     w = hamming(N_wd); 
     
@@ -81,7 +81,7 @@ while(T_ei+NN*dt-dt <= T_f)
     ReffN_wd = ReffN .* w';
     ReffU_wd = ReffU .* w';
 
-    % --- 補零 ---
+    % --- 補零 (Zero Padding) ---
     N_zp_tail = NN*0;  
     ReffE_zp = [ReffE_wd zeros(1,N_zp_tail)];
     ReffN_zp = [ReffN_wd zeros(1,N_zp_tail)];
@@ -97,28 +97,28 @@ while(T_ei+NN*dt-dt <= T_f)
     df_zp = 1/(N_zp*dt);
     f_zp = 0:df_zp:M_zp*df_zp;
 
-    % 截取有效頻率
+    % 截取有效頻率範圍
     jf_zp = find(f_zp<=F_max);
     f_zp = f_zp(jf_zp);
     RfeE_zp = RfeE_zp(jf_zp);
     RfeN_zp = RfeN_zp(jf_zp);
     RfeU_zp = RfeU_zp(jf_zp);
 
-    % --- 4. 計算頻譜比 ---
-    TR_E = RfeE_zp ./ RfeU_zp; 
-    TR_N = RfeN_zp ./ RfeU_zp; 
+    % --- 4. 計算頻譜比 (Spectral Ratio) ---
+    TR_E = RfeE_zp ./ RfeU_zp; % E/U
+    TR_N = RfeN_zp ./ RfeU_zp; % N/U
 
     czero = complex(0,0);
     kf_zp = find(f_zp < F_min);
     TR_E(kf_zp) = czero;
     TR_N(kf_zp) = czero;
 
-    % --- 5. 平滑化 ---
+    % --- 5. 平滑化 (Smoothing) ---
     if (itp == 2)
         TR_E_sm = smoothSpectra(TR_E,'w',20,'method','konno-ohmachi','b',20','debug','False');
         TR_N_sm = smoothSpectra(TR_N,'w',20,'method','konno-ohmachi','b',20','debug','False');
         
-        % E/U 峰值
+        % 抓取 E/U 峰值
         range_idx = fix(F_min/df_zp)+1:fix(10/df_zp); 
         if isempty(range_idx), range_idx = 1:length(f_zp); end
         
@@ -127,7 +127,7 @@ while(T_ei+NN*dt-dt <= T_f)
         f_pre_E = f_zp(maxfID_E);
         TR_sm_pre_E = abs(TRmax_E);
 
-        % N/U 峰值
+        % 抓取 N/U 峰值
         [TRmax_N, maxfID_N] = max(abs(TR_N_sm(range_idx)));
         maxfID_N = maxfID_N + range_idx(1) - 1;
         f_pre_N = f_zp(maxfID_N);
@@ -168,7 +168,7 @@ while(T_ei+NN*dt-dt <= T_f)
     hold off;
     
     xlim([0.2 10]); 
-    ylim([0.01 100]); % *** 強制鎖定 Y 軸 ***
+    ylim([0.01 100]); % *** 固定 Y 軸範圍 ***
     
     xlabel('Frequency (Hz)', 'FontSize', 11);
     ylabel('Spectral Ratio', 'FontSize', 11);
@@ -187,7 +187,7 @@ while(T_ei+NN*dt-dt <= T_f)
         fig_out = [Output_Path 'TR_(' LabE ')wrt(' LabU ')_' ps '.png'];
         saveas(gcf, fig_out, 'png');
         
-        % 輸出 .out
+        % *** 輸出數據檔 (恢復此功能) ***
         Filename = [Output_Path 'TR[smoothed]_(' LabE ')wrt(' LabU ')_' ps '.out'];
         fid = fopen(Filename, 'w');
         fprintf(fid, 'f       TR(f)          Phase(rad)\n'); 
@@ -195,12 +195,6 @@ while(T_ei+NN*dt-dt <= T_f)
             fprintf(fid, '%5.3f %14.6e %10.6f\n', f_zp(i), abs(TR_E_sm(i)), angle(TR_E_sm(i))); 
         end
         fclose(fid);
-
-        % *** 輸出 .csv ***
-        CsvName = [Output_Path 'TR[smoothed]_(' LabE ')wrt(' LabU ')_' ps '.csv'];
-        % 建立表格標頭與數據矩陣
-        data_to_write = [f_zp(:), abs(TR_E_sm(:)), angle(TR_E_sm(:))];
-        writematrix(data_to_write, CsvName); 
     end
 
     % ==========================================================
@@ -237,7 +231,7 @@ while(T_ei+NN*dt-dt <= T_f)
     hold off;
     
     xlim([0.2 10]);
-    ylim([0.01 100]); % *** 強制鎖定 Y 軸 ***
+    ylim([0.01 100]); % *** 固定 Y 軸範圍 ***
 
     xlabel('Frequency (Hz)', 'FontSize', 11);
     ylabel('Spectral Ratio', 'FontSize', 11);
@@ -256,7 +250,7 @@ while(T_ei+NN*dt-dt <= T_f)
         fig_out = [Output_Path 'TR_(' LabN ')wrt(' LabU ')_' ps '.png'];
         saveas(gcf, fig_out, 'png');
         
-        % 輸出 .out
+        % *** 輸出數據檔 (恢復此功能) ***
         Filename = [Output_Path 'TR[smoothed]_(' LabN ')wrt(' LabU ')_' ps '.out'];
         fid = fopen(Filename, 'w');
         fprintf(fid, 'f       TR(f)          Phase(rad)\n'); 
@@ -264,11 +258,6 @@ while(T_ei+NN*dt-dt <= T_f)
             fprintf(fid, '%5.3f %14.6e %10.6f\n', f_zp(i), abs(TR_N_sm(i)), angle(TR_N_sm(i))); 
         end
         fclose(fid);
-
-        % *** 輸出 .csv ***
-        CsvName = [Output_Path 'TR[smoothed]_(' LabN ')wrt(' LabU ')_' ps '.csv'];
-        data_to_write = [f_zp(:), abs(TR_N_sm(:)), angle(TR_N_sm(:))];
-        writematrix(data_to_write, CsvName); 
     end
 
     % --- 8. 更新迴圈條件 ---
