@@ -1,9 +1,10 @@
 function XQ_TRF(RE,RN,RU,nt,dt,LabE,LabN,LabU,ps,overlap,itp)
-% XQ_TRF (Modified: 3-Component Input, 3-Row Separate Figures, Fixed Y-Axis, Output Data)
+% XQ_TRF (Modified: Custom Excel Headers & Smoothed Data First)
 %
 % Updates:
-% 1. Y-Axis Limit fixed to [0.01, 100] for Spectral Ratio plot.
-% 2. Re-enabled data output to text files (.out).
+% 1. Filename format: TR_combined_(E and N)wrt(U)_Station_Date.xlsx
+% 2. Column Order: f, Smoothed(E), Smoothed(N), Raw(E), Raw(N)
+% 3. Headers: Custom strings like 'TR-sm-E/U(f)'
 
 global F_min F_max  T_i T_f T_ei T_ef NN
 global T_tick F_tick 
@@ -34,7 +35,6 @@ df = 1/(N*dt);
 f = [0:df:M*df -(M-1)*df:df:-df];
 
 % --- 2. 濾波 (Filter) ---
-% 這裡保留您目前的頻域硬切濾波方式，若要改 Butterworth 可自行替換
 czero = complex(0,0);
 
 % High pass
@@ -104,21 +104,21 @@ while(T_ei+NN*dt-dt <= T_f)
     RfeN_zp = RfeN_zp(jf_zp);
     RfeU_zp = RfeU_zp(jf_zp);
 
-    % --- 4. 計算頻譜比 (Spectral Ratio) ---
-    TR_E = RfeE_zp ./ RfeU_zp; % E/U
-    TR_N = RfeN_zp ./ RfeU_zp; % N/U
+    % --- 4. 計算頻譜比 (Spectral Ratio) - 原始數據 ---
+    TR_E = RfeE_zp ./ RfeU_zp; % E/U Raw
+    TR_N = RfeN_zp ./ RfeU_zp; % N/U Raw
 
     czero = complex(0,0);
     kf_zp = find(f_zp < F_min);
     TR_E(kf_zp) = czero;
     TR_N(kf_zp) = czero;
 
-    % --- 5. 平滑化 (Smoothing) ---
+    % --- 5. 平滑化 (Smoothing) - 平滑數據 ---
     if (itp == 2)
         TR_E_sm = smoothSpectra(TR_E,'w',20,'method','konno-ohmachi','b',20','debug','False');
         TR_N_sm = smoothSpectra(TR_N,'w',20,'method','konno-ohmachi','b',20','debug','False');
         
-        % 抓取 E/U 峰值
+        % 抓取 E/U 峰值 (僅用於標示圖片)
         range_idx = fix(F_min/df_zp)+1:fix(10/df_zp); 
         if isempty(range_idx), range_idx = 1:length(f_zp); end
         
@@ -127,7 +127,7 @@ while(T_ei+NN*dt-dt <= T_f)
         f_pre_E = f_zp(maxfID_E);
         TR_sm_pre_E = abs(TRmax_E);
 
-        % 抓取 N/U 峰值
+        % 抓取 N/U 峰值 (僅用於標示圖片)
         [TRmax_N, maxfID_N] = max(abs(TR_N_sm(range_idx)));
         maxfID_N = maxfID_N + range_idx(1) - 1;
         f_pre_N = f_zp(maxfID_N);
@@ -158,8 +158,10 @@ while(T_ei+NN*dt-dt <= T_f)
     legend(['(' LabU ')'], 'Location', 'NorthEast');
 
     subplot(3,1,3)
+    % 這裡先畫 Raw (紅色細線)
     semilogy(f_zp, abs(TR_E), 'r-', 'LineWidth', 0.3); hold on;
     if (itp == 2)
+        % 再畫 Smoothed (綠色粗線)
         plot(f_zp, abs(TR_E_sm), 'g-', 'LineWidth', 2);
         text(f_pre_E, TR_sm_pre_E*1.1, ...
             ['(' num2str(f_pre_E,'%5.3f') ', ' num2str(TR_sm_pre_E,'%5.3f') ')\rightarrow '], ...
@@ -168,7 +170,7 @@ while(T_ei+NN*dt-dt <= T_f)
     hold off;
     
     xlim([0.2 10]); 
-    ylim([0.01 100]); % *** 固定 Y 軸範圍 ***
+    ylim([0.01 100]); 
     
     xlabel('Frequency (Hz)', 'FontSize', 11);
     ylabel('Spectral Ratio', 'FontSize', 11);
@@ -182,19 +184,10 @@ while(T_ei+NN*dt-dt <= T_f)
     set(leg, 'FontSize', 9, 'Location', 'NorthEast');
     set(gcf, 'Position', [100, 50, 800, 700]);
 
-    % --- 輸出 E/U 檔案與圖片 ---
+    % 輸出圖片
     if (itp == 2)
         fig_out = [Output_Path 'TR_(' LabE ')wrt(' LabU ')_' ps '.png'];
         saveas(gcf, fig_out, 'png');
-        
-        % *** 輸出數據檔 (恢復此功能) ***
-        Filename = [Output_Path 'TR[smoothed]_(' LabE ')wrt(' LabU ')_' ps '.out'];
-        fid = fopen(Filename, 'w');
-        fprintf(fid, 'f       TR(f)          Phase(rad)\n'); 
-        for i=1:length(f_zp)
-            fprintf(fid, '%5.3f %14.6e %10.6f\n', f_zp(i), abs(TR_E_sm(i)), angle(TR_E_sm(i))); 
-        end
-        fclose(fid);
     end
 
     % ==========================================================
@@ -221,8 +214,10 @@ while(T_ei+NN*dt-dt <= T_f)
     legend(['(' LabU ')'], 'Location', 'NorthEast');
 
     subplot(3,1,3)
+    % 先畫 Raw
     semilogy(f_zp, abs(TR_N), 'r-', 'LineWidth', 0.3); hold on;
     if (itp == 2)
+        % 再畫 Smoothed
         plot(f_zp, abs(TR_N_sm), 'g-', 'LineWidth', 2);
         text(f_pre_N, TR_sm_pre_N*1.1, ...
             ['(' num2str(f_pre_N,'%5.3f') ', ' num2str(TR_sm_pre_N,'%5.3f') ')\rightarrow '], ...
@@ -231,7 +226,7 @@ while(T_ei+NN*dt-dt <= T_f)
     hold off;
     
     xlim([0.2 10]);
-    ylim([0.01 100]); % *** 固定 Y 軸範圍 ***
+    ylim([0.01 100]); 
 
     xlabel('Frequency (Hz)', 'FontSize', 11);
     ylabel('Spectral Ratio', 'FontSize', 11);
@@ -245,22 +240,52 @@ while(T_ei+NN*dt-dt <= T_f)
     set(leg, 'FontSize', 9, 'Location', 'NorthEast');
     set(gcf, 'Position', [950, 50, 800, 700]);
 
-    % --- 輸出 N/U 檔案與圖片 ---
+    % 輸出圖片
     if (itp == 2)
         fig_out = [Output_Path 'TR_(' LabN ')wrt(' LabU ')_' ps '.png'];
         saveas(gcf, fig_out, 'png');
+    end
+    
+    % ==========================================================
+    % --- 8. 輸出 Excel 檔案 (新格式) ---
+    % ==========================================================
+    if (itp == 2)
+        % 檔名格式：TR_combined_(E and N)wrt(U)_站名_日期.xlsx
+        % (ps 變數應包含 "StationName_Date")
+        Excel_Filename = [Output_Path 'TR_combined_(E and N)wrt(U)_' ps '.xlsx'];
         
-        % *** 輸出數據檔 (恢復此功能) ***
-        Filename = [Output_Path 'TR[smoothed]_(' LabN ')wrt(' LabU ')_' ps '.out'];
-        fid = fopen(Filename, 'w');
-        fprintf(fid, 'f       TR(f)          Phase(rad)\n'); 
-        for i=1:length(f_zp)
-            fprintf(fid, '%5.3f %14.6e %10.6f\n', f_zp(i), abs(TR_N_sm(i)), angle(TR_N_sm(i))); 
+        % 準備資料 (平滑在前面)
+        v_f = f_zp(:);
+        v_EU_sm  = abs(TR_E_sm(:)); % 平滑 E/U
+        v_NU_sm  = abs(TR_N_sm(:)); % 平滑 N/U
+        v_EU_raw = abs(TR_E(:));    % 原始 E/U
+        v_NU_raw = abs(TR_N(:));    % 原始 N/U
+        
+        DataMat = [v_f, v_EU_sm, v_NU_sm, v_EU_raw, v_NU_raw];
+        
+        % 嘗試使用 writecell 來寫入帶有特殊符號的標題
+        try
+            % 自訂標題
+            Header = {'f', 'TR-sm-E/U(f)', 'TR-sm-N/U(f)', 'TR-Raw-E/U(f)', 'TR-Raw-N/U(f)'};
+            % 合併標題與數據
+            OutputCell = [Header; num2cell(DataMat)];
+            % 寫入
+            writecell(OutputCell, Excel_Filename);
+            fprintf('Excel output saved (writecell): %s\n', Excel_Filename);
+            
+        catch
+            % 如果 MATLAB 版本較舊不支援 writecell，退回使用 writetable
+            % 變數名稱必須符合 MATLAB 規則 (底線取代減號與括號)
+            warning('writecell failed or not supported. Falling back to writetable with standard headers.');
+            
+            T = table(v_f, v_EU_sm, v_NU_sm, v_EU_raw, v_NU_raw, ...
+                'VariableNames', {'f', 'TR_sm_E_U_f', 'TR_sm_N_U_f', 'TR_Raw_E_U_f', 'TR_Raw_N_U_f'});
+            writetable(T, Excel_Filename);
+            fprintf('Excel output saved (writetable): %s\n', Excel_Filename);
         end
-        fclose(fid);
     end
 
-    % --- 8. 更新迴圈條件 ---
+    % --- 9. 更新迴圈條件 ---
     if (itp == 1)
         icount = icount + 1;
         T_ei = T_ei + NN*(1.-overlap)*dt;

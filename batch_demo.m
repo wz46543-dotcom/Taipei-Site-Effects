@@ -10,11 +10,12 @@
 
  clear all;
 % 設定資料路徑與輸出路徑 (請依您的電腦修改)
-DataPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Data\tainan_case\2016-02-05\';
-OutputPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Analysis\tainan_case\2016-02-05\';
+DataPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Data\tainan_case\2010-03-04\';
+OutputPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Analysis\tainan_case\2010-03-04\';
+
 
 % 設定全域變數
-Ti=0.; Tf=120.; Tei=39; NP=4800;
+Ti=0.; Tf=120.; Tei=10.00; NP=4680;
 input_TRF;
 
 % 頻率範圍設定
@@ -22,4 +23,4 @@ F_min=0.2; F_max=30;
 
 % 修改後的呼叫方式: 傳入 (E檔名, N檔名, U檔名, 'E', 'N', 'U', 備註, overlap, 模式)
 % 模式 2 代表進行 Konno-Ohmachi 平滑化
-RnC_TRF('E_TAP003.txt','N_TAP003.txt','U_TAP003.txt','E', 'N', 'U', 'TAP003', 0., 2);
+RnC_TRF('E_2010-03-04CHY021.txt','N_2010-03-04CHY021.txt','U_2010-03-04CHY021.txt','E', 'N', 'U', '2010-03-04CHY021', 0., 2);
