@@ -4,10 +4,22 @@
 
 %clear all;DataPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Data\';OutputPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Analysis\';Ti=0.;Tf=40.;Tei=10;NP=4000;input_TRF;RnC_TRF('output','input','surface','bedrock','ground_response',0.,2);
 
-clear all;DataPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Data\tainan_case\2016-02-05\';OutputPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Analysis\tainan_case\2016-02-05\';
-Ti=0.;Tf=120.;Tei=35;NP=4386;input_TRF;
-F_min=0.2;F_max=30;RnC_TRF('N_2016-02-05CHY078.txt','U_2016-02-05CHY078.txt','N','U','2016-02-05CHY078',0.,2);
+% clear all;DataPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Data\tainan_case\2016-02-05\';OutputPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Analysis\tainan_case\2016-02-05\';
+% Ti=0.;Tf=120.;Tei=35;NP=4386;input_TRF;
+% F_min=0.2;F_max=30;RnC_TRF('E_2016-02-05CHY078.txt','U_2016-02-05CHY078.txt','E','U','2016-02-05CHY078',0.,2);
 
- % clear;DataPath='C:\Users\Asus\Desktop\input\Magnitude smaller than 5\2014-02-11\';OutputPath='C:\Users\Asus\Desktop\output\TRF\5以下\2014-02-11\';
- % Ti=0;Tf=120;Tei=66.5;NP=2000;input_TRF;
- % maker_TRF('E_TAP014','N_TAP014','U_TAP014','E','N','U','TAP014_2014-02-11',0,2.);
+ clear all;
+% 設定資料路徑與輸出路徑 (請依您的電腦修改)
+DataPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Data\tainan_case\2016-02-05\';
+OutputPath='D:\signal_program\TRF_KOsmth\TRF_KOsmth\Analysis\tainan_case\2016-02-05\';
+
+% 設定全域變數
+Ti=0.; Tf=120.; Tei=39; NP=4800;
+input_TRF;
+
+% 頻率範圍設定
+F_min=0.2; F_max=30;
+
+% 修改後的呼叫方式: 傳入 (E檔名, N檔名, U檔名, 'E', 'N', 'U', 備註, overlap, 模式)
+% 模式 2 代表進行 Konno-Ohmachi 平滑化
+RnC_TRF('E_TAP003.txt','N_TAP003.txt','U_TAP003.txt','E', 'N', 'U', 'TAP003', 0., 2);
